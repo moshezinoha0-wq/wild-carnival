@@ -8,6 +8,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 
 public class MenuPanel extends JPanel implements Runnable { // הווספת Runnable
 
@@ -17,6 +18,7 @@ public class MenuPanel extends JPanel implements Runnable { // הווספת Runn
     private float alpha = 0f;
     private boolean isTransitioning = false;
     private Thread transitionThread; // ה-Thread שיחליף את ה-Timer
+    private BufferedImage logo;
 
 
     public MenuPanel(ScreenManager screenManager) {
@@ -25,6 +27,8 @@ public class MenuPanel extends JPanel implements Runnable { // הווספת Runn
 
         setPreferredSize(new Dimension(GameWindow.WIDTH, GameWindow.HEIGHT));
         setLayout(null);
+
+        logo = AssetLoader.loadImage("images/wild-carnival-logo.png");
 
         int centerX = (GameWindow.WIDTH / 2) - 250;
 
@@ -143,7 +147,18 @@ public class MenuPanel extends JPanel implements Runnable { // הווספת Runn
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g;
         if (backgroundImage != null) g.drawImage(backgroundImage, 0, 0, GameWindow.WIDTH, GameWindow.HEIGHT, this);
+        if (logo != null) {
+            int logoWidth = 800;  // שנה את הגודל לפי הצורך
+            int logoHeight = 250; // שנה את הגודל לפי הצורך
+
+            // חישוב מרכוז אופקי
+            int x = (GameWindow.WIDTH / 2) - (logoWidth / 2);
+            int y = 50; // מרחק מהחלק העליון
+
+            g2.drawImage(logo, x, y, logoWidth, logoHeight, null);
+        }
     }
 
     @Override

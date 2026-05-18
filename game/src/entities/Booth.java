@@ -29,7 +29,6 @@ public class Booth {
 
         double distance = Math.sqrt(Math.pow(centerX - playerX, 2) + Math.pow(centerY - playerY, 2));
 
-        // מרחק של 120-150 פיקסלים בדרך כלל מרגיש טוב
         return distance < 130;
     }
 

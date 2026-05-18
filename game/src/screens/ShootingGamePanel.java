@@ -26,7 +26,7 @@ public class ShootingGamePanel extends JPanel implements Runnable {
     private double score = 0.0;
 
     private final int TARGET_SIZE = 140;
-    private final int SPAWN_INTERVAL = 700;
+    private final int SPAWN_INTERVAL = 550;
 
     private int cursorSize = 50; // הגודל הרגיל של הכוונת
     private final int BASE_CURSOR_SIZE = 50; // גודל הבסיס הקבוע
