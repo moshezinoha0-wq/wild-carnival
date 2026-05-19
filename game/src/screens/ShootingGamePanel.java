@@ -25,22 +25,28 @@ public class ShootingGamePanel extends JPanel implements Runnable {
     private BufferedImage background, targetSprite, customCursor;
     private double score = 0.0;
 
-    private final int TARGET_SIZE = 140;
-    private final int SPAWN_INTERVAL = 550;
-
-    private int cursorSize = 50; // הגודל הרגיל של הכוונת
-    private final int BASE_CURSOR_SIZE = 50; // גודל הבסיס הקבוע
+    private final int TARGET_SIZE = 200;
+    private final int SPAWN_INTERVAL = 500;
 
     private int timeLeft = 60;
     private long lastTimerUpdate;
     private boolean gameOver = false;
 
+    private boolean isCountingDown = true;
+    private int countdownValue = 3;
+    private long lastCountdownUpdate;
+    private float countdownScale = 1.0f; // עבור אפקט פעימה קטן למספרים
+
     private ArrayList<Target> targets = new ArrayList<>();
-    private ArrayList<BulletHole> bulletHoles = new ArrayList<>(); // רשימת חורי ירי
-    private ArrayList<FloatingText> floatingTexts = new ArrayList<>(); // רשימת טקסט צף
+    private ArrayList<BulletHole> bulletHoles = new ArrayList<>();
+    private ArrayList<FloatingText> floatingTexts = new ArrayList<>();
 
     private Random random = new Random();
     private long lastTargetSpawn;
+
+    // כוונת דינמית
+    private int cursorSize = 50;
+    private final int BASE_CURSOR_SIZE = 50;
 
     public ShootingGamePanel(ScreenManager screenManager) {
         this.screenManager = screenManager;
@@ -53,8 +59,9 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         this.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                if (!gameOver) {
-                    cursorSize = 70; // מגדילים את הכוונת ל-70 פיקסלים ברגע הלחיצה
+                // מאפשרים לירות רק אם המשחק רץ ולא בזמן ספירה לאחור או סיום
+                if (!gameOver && !isCountingDown) {
+                    cursorSize = 70; // אפקט רתיעה לכוונת
                     checkHit(e.getX(), e.getY());
                 }
             }
@@ -90,6 +97,13 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         score = 0.0;
         timeLeft = 60;
         gameOver = false;
+
+        // אתחול משתני הספירה לאחור
+        isCountingDown = true;
+        countdownValue = 3;
+        countdownScale = 1.0f;
+        lastCountdownUpdate = System.currentTimeMillis();
+
         targets.clear();
         bulletHoles.clear();
         floatingTexts.clear();
@@ -99,7 +113,7 @@ public class ShootingGamePanel extends JPanel implements Runnable {
     @Override
     public void run() {
         while (running) {
-            if (!gameOver) update();
+            update();
             repaint();
             try { Thread.sleep(16); } catch (InterruptedException e) {}
         }
@@ -112,20 +126,47 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             return;
         }
 
+        // אנימציית התכווצות הכוונת (רתיעה)
         if (cursorSize > BASE_CURSOR_SIZE) {
-            cursorSize -= 2; // מקטין את הכוונת ב-2 פיקסלים בכל פריים עד שהיא חוזרת ל-50
+            cursorSize -= 2;
         }
 
-        if (System.currentTimeMillis() - lastTimerUpdate >= 1000) {
-            timeLeft--;
-            lastTimerUpdate = System.currentTimeMillis();
-            if (timeLeft <= 0) endGame();
+        // לוגיקה בזמן ספירה לאחור
+        if (isCountingDown) {
+            long now = System.currentTimeMillis();
+            long elapsed = now - lastCountdownUpdate;
+
+            // אפקט פעימה קטן למספרים (הולכים וקטנים בכל שנייה)
+            countdownScale = 1.0f - (elapsed / 1000f);
+            if (countdownScale < 0.5f) countdownScale = 0.5f;
+
+            if (elapsed >= 1000) {
+                countdownValue--;
+                lastCountdownUpdate = now;
+                countdownScale = 1.0f;
+
+                if (countdownValue <= 0) {
+                    isCountingDown = false;
+                    // מאפסים את הזמנים כדי שהמשחק יתחיל בדיוק עכשיו
+                    lastTimerUpdate = System.currentTimeMillis();
+                    lastTargetSpawn = System.currentTimeMillis();
+                }
+            }
+            return; // עוצרים כאן! לא מעדכנים מטרות או טיימר ראשי בזמן הספירה
         }
 
-        // שינוי: מטרות נוצרות רק אם המשחק לא נגמר
-        if (!gameOver && System.currentTimeMillis() - lastTargetSpawn > SPAWN_INTERVAL) {
-            spawnTarget();
-            lastTargetSpawn = System.currentTimeMillis();
+        // לוגיקה רגילה של המשחק (רק אחרי שהספירה מסתיימת)
+        if (!gameOver) {
+            if (System.currentTimeMillis() - lastTimerUpdate >= 1000) {
+                timeLeft--;
+                lastTimerUpdate = System.currentTimeMillis();
+                if (timeLeft <= 0) endGame();
+            }
+
+            if (System.currentTimeMillis() - lastTargetSpawn > SPAWN_INTERVAL) {
+                spawnTarget();
+                lastTargetSpawn = System.currentTimeMillis();
+            }
         }
 
         // עדכון מטרות
@@ -136,7 +177,7 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             if (t.isDead()) it.remove();
         }
 
-        // עדכון טקסט צף (פייד אאוט)
+        // עדכון טקסט צף
         Iterator<FloatingText> ftIt = floatingTexts.iterator();
         while (ftIt.hasNext()) {
             FloatingText ft = ftIt.next();
@@ -168,13 +209,12 @@ public class ShootingGamePanel extends JPanel implements Runnable {
     }
 
     private void checkHit(int mx, int my) {
-        boolean hitSomething = false; // משתנה למעקב אחרי פגיעה
-
+        boolean hitSomething = false;
         for (Target t : targets) {
             if (t.getBounds().contains(mx, my) && t.canBeHit()) {
-                // חישוב מרחק וניקוד
                 double centerX = t.x + (t.width / 2.0);
                 double centerY = t.y + (t.height / 2.0);
+
                 double distance = Math.sqrt(Math.pow(mx - centerX, 2) + Math.pow(my - centerY, 2));
                 double maxDistance = t.width / 2.0;
 
@@ -182,28 +222,23 @@ public class ShootingGamePanel extends JPanel implements Runnable {
                 if (accuracyBonus < 1.0) accuracyBonus = 1.0;
 
                 score += accuracyBonus;
-
-                // טקסט צף רק בפגיעה
                 floatingTexts.add(new FloatingText(mx, my, String.format("+%.1f", accuracyBonus)));
 
                 t.hit();
-                hitSomething = true; // סימון שהייתה פגיעה
+                hitSomething = true;
                 break;
             }
         }
 
-        // אם עברנו על כל המטרות ולא פגענו בכלום - נוסיף חור ירי לרקע
         if (!hitSomething) {
             bulletHoles.add(new BulletHole(mx, my));
         }
 
-        // הפעלת סאונד הירייה בכל מקרה (גם בפגיעה וגם בפספוס)
         soundPlayer.playSFX("game/resources/sounds/gunshot.wav", false);
     }
 
     private void endGame() {
         gameOver = true;
-        // ניקוי המטרות שנותרו כדי שלא ימשיכו לגדול/להבהב
         targets.clear();
 
         SwingUtilities.invokeLater(() -> {
@@ -227,14 +262,16 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+        // ציור הרקע
         g2.drawImage(background, 0, 0, getWidth(), getHeight(), null);
 
-        // ציור חורי ירי (Bullet Holes)
-        g2.setColor(new Color(40, 40, 40)); // צבע שחור-פחם
+        // ציור חורי ירי
+        g2.setColor(new Color(40, 40, 40));
         for (BulletHole hole : bulletHoles) {
             g2.fillOval(hole.x - 4, hole.y - 4, 8, 8);
         }
 
+        // ציור מטרות
         for (Target t : targets) {
             t.draw(g2, targetSprite);
         }
@@ -244,7 +281,7 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             ft.draw(g2);
         }
 
-        // ממשק
+        // ממשק עליון קבוע (ניקוד וטיימר)
         g2.setColor(Color.RED);
         g2.setFont(new Font("Monospaced", Font.BOLD, 30));
         g2.drawString("TIME: " + timeLeft, GameWindow.WIDTH / 2 - 60, 40);
@@ -253,22 +290,39 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         g2.setFont(new Font("Arial", Font.BOLD, 35));
         g2.drawString(String.format("SCORE: %.2f", score), 30, 45);
 
+        // ציור מסך הספירה לאחור במידה והוא פעיל
+        if (isCountingDown) {
+            // שכבת עמעום קלה על המסך כדי להבליט את המספרים
+            g2.setColor(new Color(0, 0, 0, 100));
+            g2.fillRect(0, 0, getWidth(), getHeight());
+
+            // הגדרת פונט ענק משתנה לפי ה-scale
+            int fontSize = (int) (120 * countdownScale);
+            g2.setFont(new Font("Arial", Font.BOLD, fontSize));
+            g2.setColor(Color.YELLOW);
+
+            String text = String.valueOf(countdownValue);
+            FontMetrics fm = g2.getFontMetrics();
+            int textX = (GameWindow.WIDTH - fm.stringWidth(text)) / 2;
+            int textY = (GameWindow.HEIGHT / 2) + (fm.getAscent() / 2) - 50;
+
+            g2.drawString(text, textX, textY);
+        }
+
+        // כוונת עכבר דינמית
         Point mousePos = getMousePosition();
         if (mousePos != null && customCursor != null) {
-            // משתמשים ב-cursorSize גם למיקום (כדי שהיא תישאר ממורכזת) וגם לגודל
             int halfSize = cursorSize / 2;
             g2.drawImage(customCursor, mousePos.x - halfSize, mousePos.y - halfSize, cursorSize, cursorSize, null);
         }
-
     }
 
-    // קלאס עזר לחורי ירי
+    // קלאסי עזר פנימיים
     private class BulletHole {
         int x, y;
         public BulletHole(int x, int y) { this.x = x; this.y = y; }
     }
 
-    // קלאס עזר לטקסט צף עם פייד
     private class FloatingText {
         int x, y;
         String text;
@@ -280,8 +334,8 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         }
 
         public void update() {
-            alpha -= 0.02f; // מהירות הפייד
-            yOffset -= 1;   // תנועה כלפי מעלה
+            alpha -= 0.02f;
+            yOffset -= 1;
         }
 
         public void draw(Graphics2D g2) {
@@ -290,13 +344,13 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             g2.setColor(Color.YELLOW);
             g2.setFont(new Font("Arial", Font.BOLD, 25));
             g2.drawString(text, x, y + yOffset);
-            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f)); // איפוס שקיפות
+            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         }
     }
 
     private class Target {
         int x, y, width, height;
-        int state = 0; // 0=entry, 1=idle, 2=exit
+        int state = 0;
         long stateStartTime;
         boolean isHit = false;
 

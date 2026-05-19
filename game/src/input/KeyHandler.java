@@ -21,7 +21,7 @@ public class KeyHandler implements KeyListener {
         if (code == KeyEvent.VK_A || code == KeyEvent.VK_LEFT) leftPressed = true;
         if (code == KeyEvent.VK_D || code == KeyEvent.VK_RIGHT) rightPressed = true;
         if (code == KeyEvent.VK_ESCAPE) escPressed = true;
-        if (code == KeyEvent.VK_E) ePressed = true;
+        if (code == KeyEvent.VK_E || code == KeyEvent.VK_SPACE) ePressed = true;
     }
 
     @Override
@@ -33,7 +33,7 @@ public class KeyHandler implements KeyListener {
         if (code == KeyEvent.VK_A || code == KeyEvent.VK_LEFT) leftPressed = false;
         if (code == KeyEvent.VK_D || code == KeyEvent.VK_RIGHT) rightPressed = false;
         if (code == KeyEvent.VK_ESCAPE) escPressed = false;
-        if (code == KeyEvent.VK_E) ePressed = false;
+        if (code == KeyEvent.VK_E || code == KeyEvent.VK_SPACE) ePressed = false;
     }
 
     public void resetKeys() {

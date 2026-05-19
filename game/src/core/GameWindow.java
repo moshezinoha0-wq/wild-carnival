@@ -38,7 +38,6 @@ public class GameWindow {
         window.repaint();
         // מתאימים גודל ונותנים פוקוס למקלדת
         window.pack();
-        //ממקד את האינטרקציה של העכבר ובמקשים על הpanel החדש
         panel.requestFocusInWindow();
     }
 }

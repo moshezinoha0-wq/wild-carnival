@@ -17,7 +17,7 @@ public class MenuPanel extends JPanel implements Runnable { // הווספת Runn
     private Image backgroundImage;
     private float alpha = 0f;
     private boolean isTransitioning = false;
-    private Thread transitionThread; // ה-Thread שיחליף את ה-Timer
+    private Thread transitionThread;
     private BufferedImage logo;
 
 
@@ -86,7 +86,7 @@ public class MenuPanel extends JPanel implements Runnable { // הווספת Runn
             repaint();
 
             try {
-                // השהיה של 30 מילי-שניות (כמו שהיה בטיימר)
+                // השהיה של 30 מילי-שניות
                 Thread.sleep(30);
             } catch (InterruptedException e) {
                 e.printStackTrace();

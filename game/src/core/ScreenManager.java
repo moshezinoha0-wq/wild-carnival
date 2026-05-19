@@ -38,7 +38,6 @@ public class ScreenManager {
     public SoundPlayer getMusicPlayer() { return musicPlayer; }
     public DialogueManager getDialogueManager() { return dialogueManager; }
     public GameState getCurrentState() { return currentState; }
-    public void setCurrentState(GameState state) { this.currentState = state; }
     //גטים לפנלים
     public JPanel getPanel(GameState state) {
         if (state == GameState.MENU) return menuPanel;
@@ -51,8 +50,9 @@ public class ScreenManager {
     public void showScreen(GameState state) {
         this.currentState = state;
         JPanel target = null;
+        //מהתחל את המקשים לfalse
         keyH.resetKeys();
-
+        //מעגדכן כל state כחלק מחלון מסוים (וגם מנגן מוזיקה במידת הצורך)
         if (state == GameState.MENU) {
             target = menuPanel;
             musicPlayer.playBackgroundMusic("game/resources/sounds/wild_west_menuPanel.wav", 1.0f);

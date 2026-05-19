@@ -49,6 +49,7 @@ public class AssetLoader {
 
     // פונקציה לקבלת הפונט בגודל רצוי
     public static Font getFont(float size) {
+        //ברירת מחדל למקרה של בעיות
         if (gameFont == null) {
             return new Font("Arial", Font.PLAIN, (int) size);
         }

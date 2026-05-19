@@ -12,13 +12,6 @@ public class DialogueManager {
     private Clip currentVoiceClip;
     private boolean waitingForChoice = false;
 
-    private String[] boothDialogue = {
-            "Welcome to the Carnival, stranger...",
-            "I've been waiting for someone with your... energy.",
-            "Do you want to see something truly strange?",
-            "Or are you just here to waste my time?"
-    };
-
     public DialogueManager(SoundPlayer soundPlayer) {
         this.soundPlayer = soundPlayer;
     }
@@ -48,7 +41,6 @@ public class DialogueManager {
         visibleText = "";
 
         new Thread(() -> {
-            // הפעלת הסאונד הארוך שלך (בלופ)
             currentVoiceClip = soundPlayer.playLoopingSFX("game/resources/sounds/booth_keeper_sound.wav");
 
             for (int i = 0; i <= text.length(); i++) {
