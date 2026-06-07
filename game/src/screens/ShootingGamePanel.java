@@ -48,6 +48,9 @@ public class ShootingGamePanel extends JPanel implements Runnable {
     private ArrayList<BulletHole> bulletHoles = new ArrayList<>();
     private ArrayList<FloatingText> floatingTexts = new ArrayList<>();
 
+    private double highScore = 0.0;
+    private final String SAVE_FILE_PATH = "highscore.txt";
+
     private Random random = new Random();
     private long lastTargetSpawn;
 
@@ -64,6 +67,8 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         loadAssets();       //טעינת התמונות של המשחק
         hideStandardCursor();       //מחביא את הסימן של בעכבר
         setupPauseButtons();
+
+        loadHighScore();
 
         // מאזין עכבר משולב (ליריות וללחיצה על כפתורי העצירה)
         this.addMouseListener(new MouseAdapter() {
@@ -305,19 +310,26 @@ public class ShootingGamePanel extends JPanel implements Runnable {
     //סוף המשחק
     private void endGame() {
         gameOver = true;
-        // לא מוחקים כאן את המטרות מיד, כדי שהשחקן יראה את המצב האחרון ברקע כשהחלון קופץ
+        targets.clear();
+
+
+        if (score > highScore) {
+            highScore = score;
+            saveHighScore();
+        }
 
         SwingUtilities.invokeLater(() -> {
             String finalScore = String.format("%.2f", score);
+            String topScore = String.format("%.2f", highScore);
+
             int choice = JOptionPane.showConfirmDialog(this,
-                    "Game Over! Final Score: " + finalScore + "\nPlay again?",
+                    "Game Over! Final Score: " + finalScore + "\nHigh Score: " + topScore + "\nPlay again?",
                     "Results", JOptionPane.YES_NO_OPTION);
 
             if (choice == JOptionPane.YES_OPTION) {
                 resetGame();
             } else {
                 running = false;
-                targets.clear(); // מנקים רק כשיוצאים סופית
                 screenManager.showScreen(GameState.GAME);
             }
         });
@@ -356,6 +368,10 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Arial", Font.BOLD, 35));
         g2.drawString(String.format("SCORE: %.2f", score), 30, 45);
+
+        g2.setColor(Color.YELLOW);
+        g2.setFont(new Font("Arial", Font.BOLD, 25));
+        g2.drawString(String.format("HI-SCORE: %.2f", highScore), 30, 85);
 
         // ציור מסך הספירה לאחור במידה והוא פעיל
         if (isCountingDown) {
@@ -511,6 +527,30 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             int offsetY = (height - drawH) / 2;
 
             g2.drawImage(img, x + offsetX, y + offsetY, drawW, drawH, null);
+        }
+    }
+
+    private void loadHighScore() {
+        java.io.File file = new java.io.File(SAVE_FILE_PATH);
+        if (!file.exists()) {
+            highScore = 0.0;
+            return;
+        }
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
+            String line = reader.readLine();
+            if (line != null) {
+                highScore = Double.parseDouble(line);
+            }
+        } catch (Exception e) {
+            System.out.println("שגיאה בטעינת ה-High Score: " + e.getMessage());
+        }
+    }
+
+    private void saveHighScore() {
+        try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(SAVE_FILE_PATH))) {
+            writer.write(String.valueOf(highScore));
+        } catch (Exception e) {
+            System.out.println("שגיאה בשמירת ה-High Score: " + e.getMessage());
         }
     }
 }

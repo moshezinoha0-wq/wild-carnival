@@ -14,9 +14,12 @@ import java.awt.event.MouseEvent;
 public class HowToPlayPanel extends JPanel {
 
     private ScreenManager screenManager;
-    private JButton backToMenuButton; // הכפתור שמופיע רק כשבאים מהמשחק
-    private boolean fromGame = false;//בודק אם הגענו מהמשחק או מהמהסך בית
+    private JButton backToMenuButton;
+    private boolean fromGame = false;
 
+    // רכיב חדש להצגת ה-High Score
+    private JLabel highScoreLabel;
+    private final String SAVE_FILE_PATH = "highscore.txt";
 
     public HowToPlayPanel(ScreenManager screenManager) {
         this.screenManager = screenManager;
@@ -25,29 +28,26 @@ public class HowToPlayPanel extends JPanel {
         setLayout(null);
         setFocusable(true);
 
-        // 1. יצירת הכפתור - לחיצה עליו תמיד מחזירה למניו
         backToMenuButton = createReturnButton("Back to Main Menu", (GameWindow.WIDTH / 2) - 250, 20, e -> {
             new Thread(() -> {
                 screenManager.showScreen(GameState.MENU);
             }).start();
         });
-        backToMenuButton.setVisible(false); // כברירת מחדל הוא חבוי
+        backToMenuButton.setVisible(false);
         add(backToMenuButton);
 
         setupLabels();
         setupIcons();
+        setupHighScoreLabel(); // יצירת הלייבל של השיא
 
-        // 2. לוגיקת ESC - מחזירה למקום הנכון לפי מאיפה באנו
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
                     new Thread(() -> {
                         if (fromGame) {
-                            // אם באנו מהמשחק - ESC מחזיר למשחק
                             screenManager.showScreen(GameState.GAME);
                         } else {
-                            // אם באנו מהתפריט - ESC מחזיר לתפריט
                             screenManager.showScreen(GameState.MENU);
                         }
                     }).start();
@@ -56,12 +56,41 @@ public class HowToPlayPanel extends JPanel {
         });
     }
 
-    // 3. הפונקציה שקובעת את המצב (חייבים לקרוא לה במעבר מסך)
     public void setFromGame(boolean status) {
         this.fromGame = status;
         if (backToMenuButton != null) {
-            // הכפתור יוצג רק אם אנחנו בתוך המשחק
             backToMenuButton.setVisible(status);
+        }
+    }
+
+    // מתודה חדשה ליצירת הלייבל של ה-High Score ומיקומו על המסך
+    private void setupHighScoreLabel() {
+        highScoreLabel = new JLabel("MINI-GAME HI-SCORE: 0.00");
+        highScoreLabel.setFont(AssetLoader.getFont(30)); // משתמש בפונט של הפרויקט שלך
+        highScoreLabel.setForeground(Color.YELLOW);     // צבע זהב בולט
+        highScoreLabel.setBounds(400, 250, 600, 50); // מיקום בפינה השמאלית התחתונה
+        add(highScoreLabel);
+    }
+
+    // מתודה שקוראת את הציון העדכני ביותר מקובץ הטקסט
+    public void updateHighScoreDisplay() {
+        java.io.File file = new java.io.File(SAVE_FILE_PATH);
+        double highScore = 0.0;
+
+        if (file.exists()) {
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
+                String line = reader.readLine();
+                if (line != null) {
+                    highScore = Double.parseDouble(line);
+                }
+            } catch (Exception e) {
+                System.out.println("Error loading High Score in HowToPlay: " + e.getMessage());
+            }
+        }
+
+        // עדכון הטקסט הגרפי בצורה נקייה עם 2 ספרות אחרי הנקודה
+        if (highScoreLabel != null) {
+            highScoreLabel.setText(String.format("MINI-GAME HI-SCORE: %.2f", highScore));
         }
     }
 
@@ -149,6 +178,7 @@ public class HowToPlayPanel extends JPanel {
     @Override
     public void addNotify() {
         super.addNotify();
+        updateHighScoreDisplay(); // בכל פעם שהמסך עולה מחדש - קוראים מהקובץ ומעדכנים את התצוגה!
         requestFocusInWindow();
     }
 }
