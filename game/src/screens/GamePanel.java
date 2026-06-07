@@ -53,7 +53,7 @@ public class GamePanel extends JPanel implements Runnable {
             {2,1,0,0,1,2,1,0,2,2,1,0,1,0,2,1},
             {0,2,1,2,1,0,2,1,0,1,0,2,1,2,0,0}
     };
-
+    //מהתחל את הנכסים של הפנאל
     public GamePanel(ScreenManager screenManager, KeyHandler keyH) {
         this.screenManager = screenManager;
         this.keyH = keyH;
@@ -70,7 +70,7 @@ public class GamePanel extends JPanel implements Runnable {
         loadImages();
         setupPlayer();
     }
-
+    //טוען את הנכסים הגרפים
     private void loadImages() {
         try {
             sand1 = AssetLoader.loadImage("images/sand1.png");
@@ -82,7 +82,7 @@ public class GamePanel extends JPanel implements Runnable {
             System.out.println("Error loading images: " + e.getMessage());
         }
     }
-
+    //עושה את הפריימים של הדמות
     private void setupPlayer() {
         if (this.playerSheet == null) return;
         int w = playerSheet.getWidth() / 3;
@@ -172,7 +172,6 @@ public class GamePanel extends JPanel implements Runnable {
             else if (carnivalBooth != null && carnivalBooth.isPlayerNear(player.getX(), player.getY())) {
                 screenManager.getMusicPlayer().stopMusic();
                 screenManager.showScreen(core.GameState.DIALOGUE);
-                // שים לב: וודא שהשם של הקובץ כאן תואם למה שיש לך בתיקיית ה-sounds
                 screenManager.getMusicPlayer().playBackgroundMusic("game/resources/sounds/booth_ost.wav", 0.5f);
 
                 String[] lines = {
