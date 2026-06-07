@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="wild-carnival:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/wild_carnival_jar</output-path>
+    <root id="archive" name="wild-carnival.jar">
+      <element id="module-output" name="wild-carnival" />
+    </root>
+  </artifact>
+</component>

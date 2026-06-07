@@ -8,6 +8,8 @@ import util.SoundPlayer;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -16,22 +18,27 @@ import java.util.Iterator;
 import java.util.Random;
 
 public class ShootingGamePanel extends JPanel implements Runnable {
-
+    //משתנים תכנים לריצת המשחק
     private ScreenManager screenManager;
     private SoundPlayer soundPlayer;
     private Thread gameThread;
     private boolean running = false;
 
+    // מנגנון מצב עצירה
+    private boolean isPaused = false;
+    private Rectangle resumeBtn, restartBtn, exitBtn;
+    private int hoveredButton = 0; // 1 = Resume, 2 = Restart, 3 = Exit, 0 = None
+
     private BufferedImage background, targetSprite, customCursor;
     private double score = 0.0;
-
+    //מנגנון המטרות
     private final int TARGET_SIZE = 200;
     private final int SPAWN_INTERVAL = 500;
-
+    //מנגנון הטיימר
     private int timeLeft = 60;
     private long lastTimerUpdate;
     private boolean gameOver = false;
-
+    //מנגנון הספירה לאחור
     private boolean isCountingDown = true;
     private int countdownValue = 3;
     private long lastCountdownUpdate;
@@ -47,27 +54,85 @@ public class ShootingGamePanel extends JPanel implements Runnable {
     // כוונת דינמית
     private int cursorSize = 50;
     private final int BASE_CURSOR_SIZE = 50;
-
+    //הבנאי (מכיל אצ המאזין של העכבר ושל המקשים)
     public ShootingGamePanel(ScreenManager screenManager) {
         this.screenManager = screenManager;
         this.soundPlayer = screenManager.getMusicPlayer();
         this.setPreferredSize(new Dimension(GameWindow.WIDTH, GameWindow.HEIGHT));
+        this.setFocusable(true);
 
-        loadAssets();
-        hideStandardCursor();
+        loadAssets();       //טעינת התמונות של המשחק
+        hideStandardCursor();       //מחביא את הסימן של בעכבר
+        setupPauseButtons();
 
+        // מאזין עכבר משולב (ליריות וללחיצה על כפתורי העצירה)
         this.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                // מאפשרים לירות רק אם המשחק רץ ולא בזמן ספירה לאחור או סיום
-                if (!gameOver && !isCountingDown) {
+                if (isPaused) {
+                    if (resumeBtn.contains(e.getPoint())) {
+                        isPaused = false;
+                        lastTimerUpdate = System.currentTimeMillis();
+                        lastTargetSpawn = System.currentTimeMillis();
+                    } else if (restartBtn.contains(e.getPoint())) {
+                        resetGame();
+                    } else if (exitBtn.contains(e.getPoint())) {
+                        running = false;
+                        soundPlayer.stopBackgroundMusic();
+                        screenManager.showScreen(GameState.GAME);
+                    }
+                } else if (!gameOver && !isCountingDown) {
                     cursorSize = 70; // אפקט רתיעה לכוונת
                     checkHit(e.getX(), e.getY());
                 }
             }
         });
+
+        // מאזין תנועת עכבר בשביל אפקט Hover לתפריט העצירה
+        this.addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (isPaused) {
+                    if (resumeBtn.contains(e.getPoint())) hoveredButton = 1;
+                    else if (restartBtn.contains(e.getPoint())) hoveredButton = 2;
+                    else if (exitBtn.contains(e.getPoint())) hoveredButton = 3;
+                    else hoveredButton = 0;
+                }
+            }
+        });
+
+        this.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    if (!gameOver && !isCountingDown) {
+                        isPaused = !isPaused; // הפיכת מצב עצירה
+                        if (isPaused) {
+                            soundPlayer.playSFX("game/resources/sounds/button.wav", false);
+                        } else {
+                            lastTimerUpdate = System.currentTimeMillis();
+                            lastTargetSpawn = System.currentTimeMillis();
+                        }
+                    }
+                }
+            }
+        });
+    }
+    //הכפתורים של העצירה
+    private void setupPauseButtons() {
+        int menuW = 400;
+        int btnW = 300;
+        int btnH = 60;
+        int menuX = (GameWindow.WIDTH - menuW) / 2;
+        int menuY = (GameWindow.HEIGHT - 350) / 2;
+        int btnX = menuX + (menuW - btnW) / 2;
+
+        resumeBtn = new Rectangle(btnX, menuY + 90, btnW, btnH);
+        restartBtn = new Rectangle(btnX, menuY + 170, btnW, btnH);
+        exitBtn = new Rectangle(btnX, menuY + 250, btnW, btnH);
     }
 
+    //טוען את התמונות
     private void loadAssets() {
         try {
             background = AssetLoader.loadImage("images/shooting_bg.png");
@@ -77,26 +142,28 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             System.out.println("Error: " + e.getMessage());
         }
     }
-
+    //מסתיר את הסימן עכבר
     private void hideStandardCursor() {
         BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(
                 cursorImg, new Point(0, 0), "blank cursor");
         this.setCursor(blankCursor);
     }
-
+    //מתחיל את המשחק
     public void start() {
         resetGame();
         running = true;
         gameThread = new Thread(this);
         gameThread.start();
+        //מפעיל את המוזיקה
         soundPlayer.playBackgroundMusic("game/resources/sounds/minigame_theme.wav", 0.6f);
     }
-
+    //מאפס את הנתונים למצב התחלתי נקי
     private void resetGame() {
         score = 0.0;
         timeLeft = 60;
         gameOver = false;
+        isPaused = false;
 
         // אתחול משתני הספירה לאחור
         isCountingDown = true;
@@ -109,20 +176,19 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         floatingTexts.clear();
         lastTimerUpdate = System.currentTimeMillis();
     }
-
+    //game loop
     @Override
     public void run() {
         while (running) {
             update();
             repaint();
-            try { Thread.sleep(16); } catch (InterruptedException e) {}
+            try { Thread.sleep(16); } catch (InterruptedException e) {}//60fps
         }
     }
 
     private void update() {
-        if (screenManager.keyH.escPressed) {
-            screenManager.keyH.escPressed = false;
-            screenManager.showScreen(GameState.HOW_TO_PLAY);
+        // אם המשחק בעצירה, עוצרים כאן ולא מעדכנים שום לוגיקה או טיימרים
+        if (isPaused) {
             return;
         }
 
@@ -167,14 +233,14 @@ public class ShootingGamePanel extends JPanel implements Runnable {
                 spawnTarget();
                 lastTargetSpawn = System.currentTimeMillis();
             }
-        }
 
-        // עדכון מטרות
-        Iterator<Target> it = targets.iterator();
-        while (it.hasNext()) {
-            Target t = it.next();
-            t.update();
-            if (t.isDead()) it.remove();
+            // עדכון מטרות רק כאשר המשחק לא נגמר
+            Iterator<Target> it = targets.iterator();
+            while (it.hasNext()) {
+                Target t = it.next();
+                t.update();
+                if (t.isDead()) it.remove();
+            }
         }
 
         // עדכון טקסט צף
@@ -185,7 +251,7 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             if (ft.alpha <= 0) ftIt.remove();
         }
     }
-
+    //מזמן את המטרות
     private void spawnTarget() {
         int maxAttempts = 15;
         for (int i = 0; i < maxAttempts; i++) {
@@ -207,7 +273,7 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             }
         }
     }
-
+    //בודק עם המטרה נפגעה
     private void checkHit(int mx, int my) {
         boolean hitSomething = false;
         for (Target t : targets) {
@@ -236,10 +302,10 @@ public class ShootingGamePanel extends JPanel implements Runnable {
 
         soundPlayer.playSFX("game/resources/sounds/gunshot.wav", false);
     }
-
+    //סוף המשחק
     private void endGame() {
         gameOver = true;
-        targets.clear();
+        // לא מוחקים כאן את המטרות מיד, כדי שהשחקן יראה את המצב האחרון ברקע כשהחלון קופץ
 
         SwingUtilities.invokeLater(() -> {
             String finalScore = String.format("%.2f", score);
@@ -251,6 +317,7 @@ public class ShootingGamePanel extends JPanel implements Runnable {
                 resetGame();
             } else {
                 running = false;
+                targets.clear(); // מנקים רק כשיוצאים סופית
                 screenManager.showScreen(GameState.GAME);
             }
         });
@@ -309,6 +376,31 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             g2.drawString(text, textX, textY);
         }
 
+        // שכבת תפריט עצירה (Pause Menu)
+        if (isPaused) {
+            g2.setColor(new Color(0, 0, 0, 150));
+            g2.fillRect(0, 0, getWidth(), getHeight());
+
+            int menuW = 400;
+            int menuH = 350;
+            int menuX = (GameWindow.WIDTH - menuW) / 2;
+            int menuY = (GameWindow.HEIGHT - menuH) / 2;
+
+            g2.setColor(new Color(30, 30, 30, 230));
+            g2.fillRoundRect(menuX, menuY, menuW, menuH, 20, 20);
+            g2.setColor(Color.WHITE);
+            g2.setStroke(new BasicStroke(3));
+            g2.drawRoundRect(menuX, menuY, menuW, menuH, 20, 20);
+
+            g2.setFont(new Font("Arial", Font.BOLD, 40));
+            FontMetrics fm = g2.getFontMetrics();
+            g2.drawString("PAUSED", menuX + (menuW - fm.stringWidth("PAUSED")) / 2, menuY + 55);
+
+            drawPauseButton(g2, resumeBtn, "Resume", hoveredButton == 1);
+            drawPauseButton(g2, restartBtn, "Restart", hoveredButton == 2);
+            drawPauseButton(g2, exitBtn, "Back to Game", hoveredButton == 3);
+        }
+
         // כוונת עכבר דינמית
         Point mousePos = getMousePosition();
         if (mousePos != null && customCursor != null) {
@@ -316,13 +408,33 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             g2.drawImage(customCursor, mousePos.x - halfSize, mousePos.y - halfSize, cursorSize, cursorSize, null);
         }
     }
+    //כפתורים עצירה
+    private void drawPauseButton(Graphics2D g2, Rectangle r, String text, boolean isHovered) {
+        g2.setColor(isHovered ? Color.YELLOW : Color.DARK_GRAY);
+        g2.fillRoundRect(r.x, r.y, r.width, r.height, 10, 10);
+        g2.setColor(Color.WHITE);
+        g2.drawRoundRect(r.x, r.y, r.width, r.height, 10, 10);
+
+        g2.setFont(new Font("Arial", Font.BOLD, 25));
+        g2.setColor(isHovered ? Color.BLACK : Color.WHITE);
+        FontMetrics fm = g2.getFontMetrics();
+        int tx = r.x + (r.width - fm.stringWidth(text)) / 2;
+        int ty = r.y + ((r.height - fm.getHeight()) / 2) + fm.getAscent();
+        g2.drawString(text, tx, ty);
+    }
+    //מבקש פוקוס
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        requestFocusInWindow();
+    }
 
     // קלאסי עזר פנימיים
     private class BulletHole {
         int x, y;
         public BulletHole(int x, int y) { this.x = x; this.y = y; }
     }
-
+    //הטקסט שצף
     private class FloatingText {
         int x, y;
         String text;
@@ -347,35 +459,51 @@ public class ShootingGamePanel extends JPanel implements Runnable {
             g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
         }
     }
-
+    //המטרות
     private class Target {
         int x, y, width, height;
         int state = 0;
-        long stateStartTime;
         boolean isHit = false;
+
+        // החלפנו את זמני המערכת במד-זמן מבוסס פריימים עצמאי
+        private int animationTicks = 0;
 
         public Target(int x, int y, int w, int h) {
             this.x = x; this.y = y;
             this.width = w; this.height = h;
-            this.stateStartTime = System.currentTimeMillis();
         }
 
+        // העדכון מתקדם בצעדים קבועים רק כשלולאת המשחק רצה אקטיבית
         public void update() {
-            long elapsed = System.currentTimeMillis() - stateStartTime;
-            if (state == 0 && elapsed > 300) { state = 1; stateStartTime = System.currentTimeMillis(); }
-            else if (state == 1 && elapsed > 1000) { state = 2; stateStartTime = System.currentTimeMillis(); }
-            else if (state == 2 && elapsed > 300) { state = 3; }
+            animationTicks += 16; // כל פריים מוסיף כ-16 מילישניות וירטואליות
+
+            if (state == 0 && animationTicks > 300) {
+                state = 1;
+                animationTicks = 0;
+            } else if (state == 1 && animationTicks > 1000) {
+                state = 2;
+                animationTicks = 0;
+            } else if (state == 2 && animationTicks > 300) {
+                state = 3;
+            }
         }
 
-        public void hit() { isHit = true; state = 2; stateStartTime = System.currentTimeMillis(); }
+        public void hit() {
+            isHit = true;
+            state = 2;
+            animationTicks = 0;
+        }
+
         public boolean isDead() { return state == 3; }
         public boolean canBeHit() { return state == 1 && !isHit; }
         public Rectangle getBounds() { return new Rectangle(x, y, width, height); }
 
         public void draw(Graphics2D g2, BufferedImage img) {
             float scale = 1.0f;
-            if (state == 0) scale = (System.currentTimeMillis() - stateStartTime) / 300f;
-            if (state == 2) scale = 1.0f - ((System.currentTimeMillis() - stateStartTime) / 300f);
+
+            // חישוב ה-scale ישירות מתוך הצעדים שנצברו, ללא קשר לשעון המחשב הכללי
+            if (state == 0) scale = animationTicks / 300f;
+            if (state == 2) scale = 1.0f - (animationTicks / 300f);
 
             int drawW = (int)(width * Math.max(0, scale));
             int drawH = (int)(height * Math.max(0, scale));
