@@ -349,7 +349,7 @@ public class ShootingGamePanel extends JPanel implements Runnable {
         }
 
         // ממשק עליון קבוע (ניקוד וטיימר)
-        g2.setColor(Color.RED);
+        g2.setColor(Color.WHITE);
         g2.setFont(new Font("Monospaced", Font.BOLD, 30));
         g2.drawString("TIME: " + timeLeft, GameWindow.WIDTH / 2 - 60, 40);
 
